@@ -4,11 +4,11 @@
 # {{{                           --     Init    --
 #···············································································
 [[init]]
-wandb_project = 'Multilingual-Machine-Translation'
+wandb_project = 'French-English-Translation'
 output_dir = 'outdir'
-model_checkpoint = 'google/mt5-base'
+model_checkpoint = 't5-small'
 dataset_name = 'wmt14'
-lang_pairs = ['fr-en', 'ru-en']
+lang_pairs = ['fr-en']
 max_seq_length = 128
 preprocessing_num_workers = 12
 split = 'None'
@@ -21,8 +21,8 @@ split = 'None'
 # {{{                             --    Training Args      --
 #···············································································
 [[train]]
-batch_size = 8
-learning_rate = 1e-3
+batch_size = 64
+learning_rate = 3e-4
 weight_decay = 0.0
 dropout_rate = 0.2
 num_train_epochs = 5
@@ -30,7 +30,7 @@ eval_every_steps = 5000
 logging_steps = 10
 max_train_steps = 0
 lr_scheduler_type = 'linear'
-num_warmup_steps = 5000 
+num_warmup_steps = 0
 beam_size = 3
 seed = 'None'
 #                                                                            }}}
@@ -43,12 +43,12 @@ seed = 'None'
 #···············································································
 [[t5]]
 use_t5_config = false
-vocab_size = 32128
+vocab_size = 32000
 d_model = 512
 d_kv = 64
 d_ff = 2048
-num_layers = 6
-num_decoder_layers = 6
+num_layers = 5
+num_decoder_layers = 5
 num_heads = 8
 num_relative_attention_buckets = 32
 relative_attention_max_distance = 128
@@ -58,4 +58,5 @@ initializer_factor = 1
 feed_forward_proj = 'relu'
 #                                                                            }}}
 ## ─────────────────────────────────────────────────────────────────────────────
+
 
