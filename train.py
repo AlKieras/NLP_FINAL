@@ -1,4 +1,6 @@
 
+
+
 ## ───────────────────────────────────── ▼ ─────────────────────────────────────
 # {{{                          --     Imports     --
 #···············································································
@@ -194,12 +196,12 @@ def main():
     for lang_pair in _init.lang_pairs:
         raw_datasets.append(load_dataset('wmt14', lang_pair, split=eval(_init.split)))
 
-    # if 'multi-lang-tokenizer' in os.listdir(_init.output_dir):
-        # tokenizer_path = os.path.join(_init.output_dir, 'multi-lang-tokenizer')
-        # tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
-    # else:
-    tokenizer = transformers.AutoTokenizer.from_pretrained(_init.model_checkpoint, truncation=True)
-    model = transformers.MT5ForConditionalGeneration.from_pretrained(_init.model_checkpoint)
+    if 'multi-lang-tokenizer' in os.listdir(_init.output_dir):
+        tokenizer_path = os.path.join(_init.output_dir, 'multi-lang-tokenizer')
+        tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
+    else:
+        tokenizer = transformers.AutoTokenizer.from_pretrained(_init.model_checkpoint, truncation=True)
+    model = transformers.T5ForConditionalGeneration.from_pretrained(_init.model_checkpoint)
 
     column_names = raw_datasets[0]['train'].column_names
 
@@ -234,10 +236,12 @@ def main():
     tokenizer.save_pretrained(os.path.join(_init.output_dir, 'multi-lang-tokenizer'))
 
     if _init.split == 'None':
-        train_dataset = datasets.concatenate_datasets([*train_langs])
-        fr_eval_dataset = test_langs[0]
-        ru_eval_dataset = test_langs[1]
-        # eval_dataset = datasets.concatenate_datasets([*test_langs])
+        if len(_init.lang_pairs) > 1:
+            train_dataset = datasets.concatenate_datasets([*train_langs])
+            eval_dataset = datasets.concatenate_datasets([*test_langs])
+        else:
+            train_dataset = train_langs[0]
+            eval_dataset = test_langs[0]
     else:
         all_langs = datasets.concatenate_datasets([*model_outputs])
         all_langs = all_langs.train_test_split(test_size=0.2)
@@ -259,20 +263,12 @@ def main():
             collate_fn=data_collator,
             batch_size=_train.batch_size,
             )
-    fr_eval_dataloader = DataLoader(
-            fr_eval_dataset,
+    eval_dataloader = DataLoader(
+            eval_dataset,
             shuffle=False,
             collate_fn=data_collator,
             batch_size=_train.batch_size
             )
-
-    ru_eval_dataloader = DataLoader(
-            ru_eval_dataset,
-            shuffle=False,
-            collate_fn=data_collator,
-            batch_size=_train.batch_size
-            )
-
 
     optimizer = torch.optim.AdamW(
             model.parameters(),
@@ -317,36 +313,27 @@ def main():
 ######################################################
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     global_step = 0
-    accum_iter = 4
     model = model.to(device)
     for epoch in range(_train.num_train_epochs):
         model.train()
 
-        for batch_idx, batch in enumerate(train_dataloader):
+        for batch in train_dataloader:
             input_ids = batch['input_ids'].to(device)
             labels = batch['labels'].to(device)
             attention_mask = batch['attention_mask'].to(device)
 
             labels[labels == tokenizer.pad_token_id] = -100
 
-            with torch.set_grad_enabled(True):
-
-                output = model(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
-                loss = output['loss']
-
-                loss = loss / accum_iter
-                
-                loss.backward()
-
-                if ((batch_idx + 1) % accum_iter == 0) or (batch_idx + 1 == len(train_dataloader)):
-                    optimizer.step()
-                    lr_scheduler.step()
-                    optimizer.zero_grad()
+            output = model(input_ids=input_ids, labels=labels, attention_mask=attention_mask)
+            loss = output['loss']
+            
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
             progress_bar.update(1)
             global_step += 1
-
-            #TODO: eval on french and russian and also do gradient accumulation
 
             wandb.log(
                     {
@@ -361,7 +348,7 @@ def main():
             if global_step % _train.eval_every_steps == 0 or global_step == _train.max_train_steps:
                  eval_results, last_input_ids, last_decoded_preds, last_decoded_labels = evaluate_model(
                         model=model,
-                        dataloader=fr_eval_dataloader,
+                        dataloader=eval_dataloader,
                         tokenizer=tokenizer,
                         device=device,
                         max_seq_length=_init.max_seq_length,
@@ -370,8 +357,8 @@ def main():
 
                  wandb.log(
                          {
-                             'fr_en_eval/bleu' : eval_results['bleu'],
-                             'fr_en_eval/generation_length': eval_results['generation_length'],
+                             'eval/bleu' : eval_results['bleu'],
+                             'eval/generation_length': eval_results['generation_length'],
                              },
                          step=global_step,
                          )
@@ -380,34 +367,9 @@ def main():
                  logger.info(f"Input sentence: {tokenizer.decode(last_input_ids[random_index], skip_special_tokens=True)}")
                  logger.info(f"Generated sentence: {last_decoded_preds[random_index]}")
                  logger.info(f"Reference sentence: {last_decoded_labels[random_index][0]}")
-
-                 eval_results, last_input_ids, last_decoded_preds, last_decoded_labels = evaluate_model(
-                        model=model,
-                        dataloader=ru_eval_dataloader,
-                        tokenizer=tokenizer,
-                        device=device,
-                        max_seq_length=_init.max_seq_length,
-                        beam_size=_train.beam_size,
-                    )
-
-                 wandb.log(
-                         {
-                             'ru_en_eval/bleu' : eval_results['bleu'],
-                             'ru_en_eval/generation_length': eval_results['generation_length'],
-                             },
-                         step=global_step,
-                         )
-                 logger.info("Generation example:")
-                 random_index = random.randint(0, len(last_input_ids) - 1)
-                 logger.info(f"Input sentence: {tokenizer.decode(last_input_ids[random_index], skip_special_tokens=True)}")
-                 logger.info(f"Generated sentence: {last_decoded_preds[random_index]}")
-                 logger.info(f"Reference sentence: {last_decoded_labels[random_index][0]}")
-
-
 
                  logger.info("Saving model checkpoint to %s", _init.output_dir)
                  model.save_pretrained(_init.output_dir)
-                 wandb.save(os.path.join(_init.output_dir, "*"))
                 # YOUR CODE ENDS HERE logger.info("Saving final model checkpoint to %s", args.output_dir)
     model.save_pretrained(_init.output_dir)
 
@@ -425,3 +387,6 @@ if __name__ == "__main__":
 
 #                                                                            }}}
 ## ─────────────────────────────────────────────────────────────────────────────
+
+
+
