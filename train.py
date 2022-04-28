@@ -1,6 +1,5 @@
 
 
-
 ## ───────────────────────────────────── ▼ ─────────────────────────────────────
 # {{{                          --     Imports     --
 #···············································································
@@ -201,7 +200,7 @@ def main():
         tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
     else:
         tokenizer = transformers.AutoTokenizer.from_pretrained(_init.model_checkpoint, truncation=True)
-    model = transformers.T5ForConditionalGeneration.from_pretrained(_init.model_checkpoint)
+    model = transformers.MT5ForConditionalGeneration.from_pretrained(_init.model_checkpoint)
 
     column_names = raw_datasets[0]['train'].column_names
 
@@ -243,7 +242,10 @@ def main():
             train_dataset = train_langs[0]
             eval_dataset = test_langs[0]
     else:
-        all_langs = datasets.concatenate_datasets([*model_outputs])
+        if len(_init.lang_pairs) > 1:
+            all_langs = datasets.concatenate_datasets([*model_outputs])
+        else:
+            all_langs = model_outputs
         all_langs = all_langs.train_test_split(test_size=0.2)
         train_dataset, eval_dataset = all_langs['train']
 
@@ -387,6 +389,5 @@ if __name__ == "__main__":
 
 #                                                                            }}}
 ## ─────────────────────────────────────────────────────────────────────────────
-
 
 
