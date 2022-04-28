@@ -6,7 +6,7 @@
 [[init]]
 wandb_project = 'French-English-Translation'
 output_dir = 'outdir'
-model_checkpoint = 't5-small'
+model_checkpoint = 'google/mt5-base'
 dataset_name = 'wmt14'
 lang_pairs = ['fr-en']
 max_seq_length = 128
