@@ -11,7 +11,7 @@ dataset_name = 'wmt14'
 lang_pairs = ['fr-en']
 max_seq_length = 60
 preprocessing_num_workers = 12
-split = [:5000]
+split = 'None'
 #                                                                            }}}
 ## ─────────────────────────────────────────────────────────────────────────────
 
