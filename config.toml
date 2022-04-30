@@ -11,7 +11,7 @@ dataset_name = 'wmt14'
 lang_pairs = ['fr-en']
 max_seq_length = 60
 preprocessing_num_workers = 12
-split = 'None'
+split = [:5000]
 #                                                                            }}}
 ## ─────────────────────────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ split = 'None'
 # {{{                             --    Training Args      --
 #···············································································
 [[train]]
-batch_size = 32
+batch_size = 16
 learning_rate = 3e-4
 weight_decay = 0.0
 dropout_rate = 0.2
