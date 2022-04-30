@@ -21,7 +21,7 @@ split = 'None'
 # {{{                             --    Training Args      --
 #···············································································
 [[train]]
-batch_size = 64
+batch_size = 32
 learning_rate = 3e-4
 weight_decay = 0.0
 dropout_rate = 0.2
