@@ -36,10 +36,7 @@ def direct():
         if translation:
             st.write(translation[0]['translation_text'])
 
-if __name__ == '__main__':
-    st.title('Multilingual Machine Translation')
-    st.write("Welcome to Aria and Tina's Machine Translation Project! Please select an option below to begin:")
-
+def daisy():
     user_input = st.text_input("Russian Input")
     if st.session_state.ru_en_pipeline is None:
         load_models()
@@ -49,4 +46,12 @@ if __name__ == '__main__':
         french_translation = st.session_state.en_fr_pipeline(english_rep[0]['translation_text'])
         st.write('French: ', french_translation[0]['translation_text'])
 
-    direct()
+if __name__ == '__main__':
+    st.title('Multilingual Machine Translation')
+    st.write("Welcome to Aria and Tina's Machine Translation Project! Please select an option below to begin:")
+
+    model_type = st.radio('Select Translation Method', ('Daisy', 'Direct'))
+    if model_type == 'Daisy':
+        daisy()
+    if model_type == 'Direct':
+        direct()
